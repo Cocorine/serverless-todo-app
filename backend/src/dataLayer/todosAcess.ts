@@ -11,36 +11,23 @@ export class TodosAccess {
         private readonly docClient: DocumentClient = createDynamoDBClient(),
         private readonly todosTable = process.env.TODOS_TABLE,
         private readonly s3 = new AWS.S3({ signatureVersion: 'v4' }),
-        private readonly imageBucketName = process.env.ATTACHMENT_S3_BUCKET,
+        private readonly bucketName = process.env.ATTACHMENT_S3_BUCKET,
         private readonly signedUrlExpiration = process.env.SIGNED_URL_EXPIRATION) {
     }
 
     async getTodosByUserId(userId: string): Promise<TodoItem[]> {
-      console.log('Getting all todos for user')
+        console.log('Getting all todos for user')
+    
+        const result = await this.docClient.query({
+          TableName: this.todosTable,
+          KeyConditionExpression: "userId = :userId",
+          ExpressionAttributeValues: {
+              ':userId': userId
+          }
+        }).promise()
   
-      const result = await this.docClient.query({
-        TableName: this.todosTable,
-        KeyConditionExpression: "userId = :userId",
-        ExpressionAttributeValues: {
-            ':userId': userId
-        }
-      }).promise()
-
-      const items = result.Items
-      return items as TodoItem[]
-    }
-
-    async getTodoById(id: string): Promise<TodoItem> {
-        console.log('Getting todo by id')
-
-        const result = await this.docClient.get({
-            TableName: this.todosTable,
-            Key: {
-                todoId: id
-            }
-          }).promise()
-  
-        return result.Item as TodoItem
+        const items = result.Items
+        return items as TodoItem[]
     }
 
     async createTodo(todo: TodoItem): Promise<TodoItem> {
@@ -75,12 +62,12 @@ export class TodosAccess {
                 "userId": todo.userId,
                 "todoId": todo.todoId
             },
-            UpdateExpression: "set #tn = :n, dueDate=:dd, done=:d",
-            ExpressionAttributeNames: { '#tn': 'name' },
+            UpdateExpression: "set #tname = :name, dueDate=:dueDate, done=:done",
+            ExpressionAttributeNames: { '#tname': 'name' },
             ExpressionAttributeValues: {
-                ":n": todo.name,
-                ":dd": todo.dueDate,
-                ":d": todo.done
+                ":name": todo.name,
+                ":dueDate": todo.dueDate,
+                ":done": todo.done
             }
         }
 
@@ -92,7 +79,7 @@ export class TodosAccess {
     async generateUploadUrl(todo): Promise<String> {
 
         const signedUrl = await this.s3.getSignedUrl('putObject', {
-            Bucket: this.imageBucketName,
+            Bucket: this.bucketName,
             Key: todo.todoId,
             Expires: Number(this.signedUrlExpiration)
         })
@@ -103,9 +90,9 @@ export class TodosAccess {
                 "userId": todo.userId,
                 "todoId": todo.todoId
             },
-            UpdateExpression: "set attachmentUrl = :a",
+            UpdateExpression: "set attachmentUrl = :url",
             ExpressionAttributeValues: {
-                ":a": `https://${this.imageBucketName}.s3.amazonaws.com/${todo.todoId}`
+                ":url": `https://${this.bucketName}.s3.amazonaws.com/${todo.todoId}`
             }
         }
 

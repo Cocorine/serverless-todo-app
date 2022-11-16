@@ -3,7 +3,8 @@ import { TodoItem } from '../models/TodoItem'
 import { CreateTodoRequest } from '../requests/CreateTodoRequest'
 import * as uuid from 'uuid'
 import { parseUserId } from '../auth/utils';
-import { UpdateTodoRequest } from '../requests/UpdateTodoRequest';
+import { APIGatewayProxyEvent } from 'aws-lambda';
+import { getUserId } from '../lambda/utils';
 
 // TODO: Implement businessLogic
 
@@ -11,10 +12,6 @@ const todoAccess = new TodosAccess()
 
 export async function getAllTodoItems(userId: string): Promise<TodoItem[]> {
   return todoAccess.getTodosByUserId(userId)
-}
-
-export async function getTodoById(todoId: string) {
-    return todoAccess.getTodoById(todoId)
 }
 
 export async function createTodoItem(
@@ -35,41 +32,24 @@ export async function createTodoItem(
   })
 }
 
-export async function deleteTodo(todoId: string, userId: string): Promise<String> {
-
-    console.log('deleteTodo')
-  
-    const todo = {
-      userId: userId,
-      todoId: todoId
-    }
-
-    return todoAccess.deleteTodo(todo)
-
+export async function deleteTodo(event: APIGatewayProxyEvent): Promise<String> {
+    console.log('delete Todo running...', { event })
+    return todoAccess.deleteTodo({
+        todoId: event.pathParameters.todoId,
+        userId: getUserId(event)
+    })
 }
 
-export async function updateTodo(todoRequest: UpdateTodoRequest, todoId: string, userId: string): Promise<String> {
-  
-    console.log('updateTodo')
-
-    const todo = {
-      userId: userId,
-      todoId: todoId,
-      ...todoRequest
-    }
-  
+export async function updateTodo(todo: TodoItem): Promise<String> {
+    console.log('update Todo running...', { todo })
     return todoAccess.updateTodo(todo)
 }
 
-export async function generateUploadUrl(userId: string, todoId: string): Promise<String> {
-
+export async function generateUploadUrl(event: APIGatewayProxyEvent): Promise<String> {
     console.log('generateUploadUrl')
-
-    const todo = {
-      userId: userId,
-      todoId: todoId
-    }
-
-    return todoAccess.generateUploadUrl(todo)
+    return todoAccess.generateUploadUrl({
+        todoId: event.pathParameters.todoId,
+        userId: getUserId(event)
+    })
 }
 

@@ -7,13 +7,18 @@ import { cors, httpErrorHandler } from 'middy/middlewares'
 import { updateTodo } from '../../businessLogic/todos'
 import { UpdateTodoRequest } from '../../requests/UpdateTodoRequest'
 import { getUserId } from '../utils'
+import { TodoItem } from '../../models/TodoItem'
 
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
 
   const todoRequest: UpdateTodoRequest = JSON.parse(event.body);
     
-  const message = await updateTodo(todoRequest, event.pathParameters.todoId, getUserId(event))
+  const message = await updateTodo({
+    ...todoRequest,
+    todoId: event.pathParameters.todoId,
+    userId: getUserId(event)
+  } as TodoItem)
 
   return {
     statusCode: 200,
